@@ -1,0 +1,33 @@
+#!/bin/sh
+
+exec 2>&1
+
+USERDATA=/var/lib/mdclient/userdata
+
+mkdir -p -m 700 /root/.ssh
+mkdir -p -m 700 /var/lib/mdclient
+
+while :; do
+	echo "attempting to fetch ssh key"
+	if curl -o /root/.ssh/authorized_keys --fail --silent \
+		http://169.254.169.254/2009-04-04/meta-data/public-keys/0/openssh-key
+	then
+		break
+	fi
+
+	sleep 1
+done
+chmod 600 /root/.ssh/authorized_keys
+
+echo "attempting to fetch user-data"
+curl -o $USERDATA --fail --silent \
+		http://169.254.169.254/2009-04-04/user-data
+
+if head -1 $USERDATA | grep -q '^#!'; then
+	echo "running userdata script"
+	chmod u+x $USERDATA
+	$USERDATA
+fi
+
+sv down mdclient
+
